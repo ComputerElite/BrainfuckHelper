@@ -25,10 +25,6 @@ export function activate(context: vscode.ExtensionContext) {
 
             // Get the document text
             const documentText = document.getText();
-			if(!document.fileName.endsWith("bf")) {
-				vscode.window.showErrorMessage("Can only execute brainfuck programs")
-				return
-			}
 
 			var memory = new Uint8Array(0xFFFF);
 

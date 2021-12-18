@@ -2,7 +2,7 @@
   "name": "brainfuckhelper",
 	"displayName": "brainfuckHelper",
 	"description": "Helps with some brainfuck stuff",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"publisher": "ComputerElite",
 	"engines": {
 		"vscode": "^1.62.0"
@@ -24,7 +24,24 @@
 				"command": "brainfuckhelper.showMemory",
 				"title": "Execute Brainfuck"
 			}
-		]
+		],
+		"languages": [{
+            "id": "brainfuck",
+            "aliases": [
+                "Brainfuck",
+                "brainfuck"
+            ],
+            "extensions": [
+                ".b",
+                ".bf"
+            ],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "brainfuck",
+            "scopeName": "source.brainfuck",
+            "path": "./brainfuck.tmLanguage.json"
+        }]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",

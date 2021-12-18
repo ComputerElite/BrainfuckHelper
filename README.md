@@ -17,6 +17,6 @@ Execute Brainfuck code in Visual Studio code:
 
 Use the command `Execute Brainfuck` to execute your code
 ## Release Notes
-### 0.0.1
+### 0.1.0
 
-Initial release of brainfuckhelper
+Added syntax highlighting from https://github.com/attilabuti/brainfuck-syntax
