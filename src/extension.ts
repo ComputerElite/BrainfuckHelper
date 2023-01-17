@@ -123,6 +123,7 @@ export function activate(context: vscode.ExtensionContext) {
 				outputChannel.append("\n\nBrainfuck has been terminated before the code has completed execution. The timeout of " + timeout + " ms has been passed")
 			}
 		}
+		
 	});
 
 	context.subscriptions.push(disposable);

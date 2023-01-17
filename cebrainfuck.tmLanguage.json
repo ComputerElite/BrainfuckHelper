@@ -1,0 +1,27 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "scopeName": "source.cebrainfuck",
+    "name": "CE Brainfuck",
+    "comment": "Syntax highlighting support for CE Brainfuck.",
+    "fileTypes": [
+        "cebf"
+    ],
+    "patterns": [
+        {
+            "match": "^;;.*",
+            "name": "comment.cebrainfuck"
+        },
+        {
+            "match": "\\$[^ ]+",
+            "name": "variable.cebrainfuck"
+        },
+        {
+            "match": "^[^ \\;#]*",
+            "name": "keyword.other.cebrainfuck"
+        },
+        {
+            "match": "([0-9]|[a-z])+",
+            "name": "constant.numeric.cebrainfuck"
+        }
+    ]
+}

@@ -2,7 +2,7 @@
   "name": "brainfuckhelper",
 	"displayName": "brainfuckHelper",
 	"description": "Helps with some brainfuck stuff",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"publisher": "ComputerElite",
 	"engines": {
 		"vscode": "^1.62.0"
@@ -36,11 +36,27 @@
                 ".bf"
             ],
             "configuration": "./language-configuration.json"
+        },
+		{
+            "id": "cebrainfuck",
+            "aliases": [
+                "CE Brainfuck",
+                "ComputerElite Brainfuck"
+            ],
+            "extensions": [
+                ".cebf"
+            ],
+            "configuration": "./ce-language-configuration.json"
         }],
         "grammars": [{
             "language": "brainfuck",
             "scopeName": "source.brainfuck",
             "path": "./brainfuck.tmLanguage.json"
+        },
+		{
+            "language": "cebrainfuck",
+            "scopeName": "source.cebrainfuck",
+            "path": "./cebrainfuck.tmLanguage.json"
         }]
 	},
 	"scripts": {
