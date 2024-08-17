@@ -1,8 +1,8 @@
 {
   "name": "brainfuckhelper",
 	"displayName": "brainfuckHelper",
-	"description": "Helps with some brainfuck stuff",
-	"version": "0.1.1",
+	"description": "Helps with some brainfuck stuff and CEBF",
+	"version": "0.2.0",
 	"publisher": "ComputerElite",
 	"engines": {
 		"vscode": "^1.62.0"

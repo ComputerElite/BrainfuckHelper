@@ -25,6 +25,10 @@
         {
             "match": "[^+<>\\-\\[\\].,]+",
             "name": "comment.brainfuck"
+        },
+        {
+            "match": "\\*",
+            "name": "keyword.operator.pointer.brainfuck"
         }
     ]
 }

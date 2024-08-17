@@ -8,20 +8,36 @@
     ],
     "patterns": [
         {
-            "match": "^;;.*",
-            "name": "comment.cebrainfuck"
+            "match": ";;.*",
+            "name": "comment"
         },
         {
             "match": "\\$[^ ]+",
-            "name": "variable.cebrainfuck"
+            "name": "variable"
         },
         {
-            "match": "^[^ \\;#]*",
-            "name": "keyword.other.cebrainfuck"
+            "match": "[0-9]+",
+            "name": "constant.numeric"
         },
         {
-            "match": "([0-9]|[a-z])+",
-            "name": "constant.numeric.cebrainfuck"
+            "match": "\\*",
+            "name": "keyword.operator"
+        },
+        {
+            "match": "^:[a-zA-Z_0-9]+",
+            "name": "entity.name.tag"
+        },
+        {
+            "match": "^macro(end| [^ ]+)",
+            "name":"entity.name.tag"
+        },
+        {
+            "match": "^#[^ ]+",
+            "name":"entity.name.tag"
+        },
+        {
+            "match": "^[^ ]+",
+            "name":"entity.name.function"
         }
     ]
 }
