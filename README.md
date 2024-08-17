@@ -3,6 +3,8 @@ Helps you with Brainfuck. Mainly execution of brainfuck programs.s
 
 ## Features
 
+Get auto completion for [CEBF](https://github.com/ComputerElite/BrainfuckInterpreter/blob/main/CEBrainfuckCreator/CEBrainfuckCreator/docs.cebf).
+
 Execute Brainfuck code in Visual Studio code:
 - Add `#` to your code anywhere to show the current memory
 - Add `step:[someNumberInMS]` to show the memory output of each step in the console. e. g. `step:100` will execute a step ~every 100ms
@@ -20,3 +22,11 @@ Use the command `Execute Brainfuck` to execute your code
 ### 0.1.0
 
 Added syntax highlighting from https://github.com/attilabuti/brainfuck-syntax
+
+### 0.2.0
+
+Added support for CEBF auto completion and navigation
+
+### 0.2.1
+
+Updated Readme

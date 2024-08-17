@@ -140,10 +140,6 @@ function processDocs(context: vscode.ExtensionContext) {
 			compilerKeywords.push(keyword);
 		}
 	});
-
-	rl.on('close', () => {
-		console.log('File processing complete.');
-	});
     
 }
 
@@ -200,7 +196,12 @@ function loadCompilerKeywords(context: vscode.ExtensionContext) {
 		keyword.canBeLabel = true;
 		keyword.documentation = "Argument " + i.toString() + " passed to the macro you're currently in. Aka this variable will get replaced with whatever the user passes in.";
 		compilerKeywords.push(keyword);
-
+	}
+	for(let i = 0; i < 1; i++) {
+		let keyword = new CEBFKeyword("$cebf_interpreter_" + i.toString(), vscode.CompletionItemKind.Variable);
+		keyword.scope = CEBFKeywordScope.Compiler;
+		keyword.documentation = "Internal variable for communication with the CEBF interpreter. " +(i == 0 ? "For telling it what to do" : "For feedback from the interpreter") + "\n\nBehavior can be looked up at https://github.com/ComputerElite/BrainfuckInterpreter/blob/main/CEBrainfuckInterpreter/CEBrainfuckInterpreter/README.md";
+		compilerKeywords.push(keyword);
 	}
 }
 
