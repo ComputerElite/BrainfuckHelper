@@ -32,8 +32,16 @@
             "name":"entity.name.tag"
         },
         {
+            "match": "(\\\\n|\\\\\")",
+            "name":"constant.character.escape"
+        },
+        {
             "match": "^#[^ ]+",
             "name":"entity.name.tag"
+        },
+        {
+            "match": "\"([^\"\\\\]*(\\\\.[^\"\\\\]*)*)\"",
+            "name": "string.quoted.double"
         },
         {
             "match": "^[^ ]+",

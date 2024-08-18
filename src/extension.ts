@@ -28,7 +28,54 @@ class CEBFKeyword {
 	scope: CEBFKeywordScope;
 	insertText?: vscode.SnippetString;
 	definition?: vscode.Location;
-	canBeLabel: boolean = false;
+	filterText?: string;
+	onlyShowInMacroArgumentCount: number = -1;
+	argumentCount: number = 0;
+	checkArgumentCount: boolean = true;
+	checkForUnescapedStrings: boolean = false;
+
+	arguments: string[] = []
+	private _canBeLabel: boolean = false;
+	private _canBeFirstWord: boolean = false;
+
+	public get canBeFirstWord(): boolean {
+		return this._canBeFirstWord || this.kind == vscode.CompletionItemKind.Function;
+	}
+
+	public set canBeFirstWord(value: boolean) {
+		this._canBeFirstWord = value;
+	}
+
+	public get canBeLabel(): boolean {
+		return this._canBeLabel || this.kind == vscode.CompletionItemKind.Module;
+	}
+
+	public set canBeLabel(value: boolean) {
+		this._canBeLabel = value
+	}
+
+	public get canBeLabelInFile(): boolean {
+		return this.kind == vscode.CompletionItemKind.Module && this.scope == CEBFKeywordScope.InFile || this.canBeLabel
+	}
+
+	public get canBeVariable(): boolean {
+		return this.kind == vscode.CompletionItemKind.Variable;
+	}
+
+	canBeVariableHere(argumentCountOfMacro: number): boolean {
+		if(!this.canBeVariable) return false;
+		if(this.onlyShowInMacroArgumentCount == -1) return true;
+		if(argumentCountOfMacro == -1) return false;
+		return this.onlyShowInMacroArgumentCount <= argumentCountOfMacro;
+	}
+
+	canBeLabelInFileHere(argumentCountOfMacro: number): boolean {
+		if(!this.canBeLabelInFile) return false;
+		if(this.onlyShowInMacroArgumentCount == -1) return true;
+		if(argumentCountOfMacro == -1) return false;
+		return this.onlyShowInMacroArgumentCount <= argumentCountOfMacro;
+	}
+	
 
 	constructor(label: string, kind: vscode.CompletionItemKind, detail: string = "", documentation: string = "", scope: CEBFKeywordScope = CEBFKeywordScope.Undefined) {
 		this.label = label;
@@ -43,16 +90,40 @@ class CEBFKeyword {
 	toCompletionItem(): vscode.CompletionItem {
 		let item = new vscode.CompletionItem(this.label, this.kind);
 		item.detail = this.detail;
+		item.filterText = this.filterText;
 		item.documentation = this.documentation;
 		item.insertText = this.insertText;
 		return item;
 	}
 
+	toSignature(): vscode.SignatureInformation {
+		let sig = new vscode.SignatureInformation(this.detail);
+		sig.documentation = this.documentation;
+		sig.parameters = this.arguments.map(x => new vscode.ParameterInformation(x));
+		return sig;
+	}
+
 	autoPopulate(i: number, lines: string[], split: string[], keywordScope = CEBFKeywordScope.Undefined, file: string = "") {
 		this.scope = keywordScope;
-		[this.detail, this.documentation] = getDocsOfKeyword(i, lines, split);
+		[this.detail, this.documentation, this.argumentCount] = getDocsOfKeyword(i, lines, split);
 		this.definition = new vscode.Location(vscode.Uri.file(file), new vscode.Position(i, 0));
+		
 		this.analyzeCompletion();
+	}
+
+	populateArguments() {
+		this.arguments = []
+		for (const s of this.detail.split("<")) {
+			if (s.includes(">")) {
+				this.arguments.push(s.split(">")[0]);
+			}
+		}
+		if(this.arguments.length < this.argumentCount) {
+			for(let i = 0; i < this.argumentCount - this.arguments.length; i++) {
+				this.arguments.push("arg" + i.toString());
+				this.detail += " <arg" + i.toString() + ">"
+			}
+		}
 	}
 
 	analyzeCompletion() {
@@ -68,6 +139,7 @@ class CEBFKeyword {
 
 			}
 		}
+		this.populateArguments();
 	}
 }
 
@@ -80,7 +152,7 @@ var outputChannelForDebugging: vscode.OutputChannel;
 var labelCompletions: {[id: string]: number[]}= {}
 var variableCompletions: {[id: string]: number[]}= {}
 
-function getDocsOfKeyword(i: number, lines: string[], split: string[]): string[] {
+function getDocsOfKeyword(i: number, lines: string[], split: string[]): any[] {
 	let usage: string = "";
 	let documentation: string = "";
 	for(let j = i - 1; j >= 0; j--) {
@@ -92,7 +164,7 @@ function getDocsOfKeyword(i: number, lines: string[], split: string[]): string[]
 			documentation = lines[j].substring(3) + "\n" + documentation;
 		}
 	}
-	return [usage, documentation];
+	return [usage, documentation, usage.split("<").length - 1];
 }
 
 function processDocs(context: vscode.ExtensionContext) {
@@ -108,16 +180,22 @@ function processDocs(context: vscode.ExtensionContext) {
 	rl.on('line', (line) => {
 		// Process each line
 		//outputChannel.appendLine(line)
-		outputChannelForDebugging.appendLine(line);
 		if(/;; [^_ $]/.test(line)) {
 
 			let split = splitByArguments(line)
 			split.splice(0, 1);
 			let keyword = new CEBFKeyword(split[0], vscode.CompletionItemKind.Function);
 			keyword.scope = CEBFKeywordScope.Compiler;
-			if(split[0] == "macro") {
-				// Add new line with endmacro
-				keyword.insertText = new vscode.SnippetString(";; Usage\n;; $1 <argument>\n" + split[0] + " $1 $2\n$3\nmacroend");
+			switch(split[0]) {
+				case "macro":
+					keyword.insertText = new vscode.SnippetString(";; Usage\n;; $1\n" + split[0] + " $1 $2\nmacroend");
+					break;
+				case "sad":
+					keyword.insertText = new vscode.SnippetString(";; Variable description\n" + split[0] + " ");
+					break;
+				case "wrt.s":
+					keyword.checkArgumentCount = false;
+					keyword.checkForUnescapedStrings = true;
 			}
 			let usage = "";
 			let documentation = "";
@@ -136,6 +214,13 @@ function processDocs(context: vscode.ExtensionContext) {
 			}
 			keyword.documentation = documentation;
 			keyword.detail = usage;
+			keyword.argumentCount = usage.split("<").length - 1;
+			if(keyword.label.startsWith("#")) {
+				keyword.kind = vscode.CompletionItemKind.Keyword;
+				keyword.canBeFirstWord = true;
+				keyword.filterText = keyword.label.substring(1);
+				keyword.insertText = new vscode.SnippetString(keyword.label.substring(1));
+			}
 			keyword.analyzeCompletion();
 			compilerKeywords.push(keyword);
 		}
@@ -156,6 +241,8 @@ function GetCompletionOfFile(text: string, file: string, isIncludedFile: boolean
 			// macro found
 			let keyword = new CEBFKeyword(split[1], vscode.CompletionItemKind.Function);
 			keyword.autoPopulate(i, lines, split, keywordScope, file);
+			keyword.argumentCount = parseInt(split[2])
+			keyword.analyzeCompletion(); // reanalyze completion as we manually changed argument count
 			completions.push(keyword);
 		} else if(line.startsWith("sad ")) {
 			// Variable decleration found
@@ -173,7 +260,6 @@ function GetCompletionOfFile(text: string, file: string, isIncludedFile: boolean
 		} else if(line.startsWith(":")) {
 			let keyword = new CEBFKeyword(split[0].substring(1), vscode.CompletionItemKind.Module);
 			keyword.autoPopulate(i, lines, split, keywordScope, file);
-			outputChannelForDebugging.appendLine(keyword.label.toString() ?? "")
 			completions.push(keyword);
 		}
 	}
@@ -194,6 +280,7 @@ function loadCompilerKeywords(context: vscode.ExtensionContext) {
 		let keyword = new CEBFKeyword("$" + i.toString(), vscode.CompletionItemKind.Variable);
 		keyword.scope = CEBFKeywordScope.Compiler;
 		keyword.canBeLabel = true;
+		keyword.onlyShowInMacroArgumentCount = i + 1;
 		keyword.documentation = "Argument " + i.toString() + " passed to the macro you're currently in. Aka this variable will get replaced with whatever the user passes in.";
 		compilerKeywords.push(keyword);
 	}
@@ -203,6 +290,100 @@ function loadCompilerKeywords(context: vscode.ExtensionContext) {
 		keyword.documentation = "Internal variable for communication with the CEBF interpreter. " +(i == 0 ? "For telling it what to do" : "For feedback from the interpreter") + "\n\nBehavior can be looked up at https://github.com/ComputerElite/BrainfuckInterpreter/blob/main/CEBrainfuckInterpreter/CEBrainfuckInterpreter/README.md";
 		compilerKeywords.push(keyword);
 	}
+}
+
+function updateDiagnostics(document: vscode.TextDocument, diagnosticCollection: vscode.DiagnosticCollection) {
+	let keywords: CEBFKeyword[] = AnalyzeDocument(document)
+	const diagnostics: vscode.Diagnostic[] = [];
+
+	for(let i = 0; i < document.lineCount; i++) {
+		let line: vscode.TextLine = document.lineAt(i);
+		let lineTxt: string = line.text.trimEnd();
+		let split: string[] = splitByArguments(lineTxt);
+		let foundKeyword = undefined;
+		if(split[0] != "" && !split[0].startsWith(";;") && !split[0].startsWith(":")) {
+			// not comment and not empty
+			foundKeyword = keywords.find(x => x.canBeFirstWord && split[0] == x.label);
+			if(!foundKeyword) {
+				diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, 0, i, split[0].length), split[0] + " does not exist in this context", vscode.DiagnosticSeverity.Error))
+			} else if(foundKeyword.checkArgumentCount) {	
+				// check argument count
+				let argumentCount = split.findIndex(x => x.startsWith(";;")) -1;
+				if(argumentCount == -2) argumentCount = split.length - 1;
+				if(foundKeyword.argumentCount != argumentCount) {
+					diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, 0, i, split[0].length), split[0] + " expects " + foundKeyword.argumentCount + " arguments, but got " + argumentCount, vscode.DiagnosticSeverity.Error))
+				}
+				switch(foundKeyword.label) {
+					case "macro":
+						// check if macro is closed
+						let foundMacroEnd = false;
+						for(let j = i + 1; j < document.lineCount; j++) {
+							if(document.lineAt(j).text.startsWith("macroend")) {
+								foundMacroEnd = true;
+								break;
+							}
+						}
+						if(!foundMacroEnd) {
+							diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, 0, i, split[0].length), "Macro " + split[1] + " is not closed", vscode.DiagnosticSeverity.Error))
+						}
+						break;
+					case "macroend":
+						// check if macro is opened
+						let foundMacro = false;
+						for(let j = i - 1; j >= 0; j--) {
+							if(document.lineAt(j).text.startsWith("macro ")) {
+								foundMacro = true;
+								break;
+							}
+						}
+						if(!foundMacro) {
+							diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, 0, i, split[0].length), "Macroend without macro", vscode.DiagnosticSeverity.Error))
+						}
+						break;
+					}
+			}
+
+		}
+		let macroArgumentCount = argumentsForMacroAtPositionInDocument(document.getText(), i);
+		let argumentStartIndex = 0;
+		let firstWord = split[0];
+		for(let j= 0; j < split.length; j++) {
+			if(split[j].startsWith("$")) {
+				// check if variable exists
+				
+				let f = keywords.find(x => x.canBeVariableHere(macroArgumentCount) && split[j] == x.label);
+				if(!f) {
+					diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, argumentStartIndex, i, argumentStartIndex + split[j].length), "Variable " + split[j] + " does not exist in this context", vscode.DiagnosticSeverity.Error))
+				}
+			}
+			if(foundKeyword && foundKeyword.checkForUnescapedStrings) {
+				// On wrt.s show warnings for unescaped strings
+				for(let k = 0; k < split[j].length; k++) {
+					if(split[j][k] == '"') {
+						if(k == 0 || split[j][k-1] != "\\" && (k == split[j].length - 1 || split[j][k+1] != "\\")) {
+							diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, argumentStartIndex + k, i, argumentStartIndex + k + 1), "Unescaped double quotation may be grouped as one argument and thus be removed.\n\ne. g. 'wrt.s They said \"I use arch btw\"'\nwill be output as\n'They said I use arch btw'\ninstead of\n'They said \"I use arch btw\"'", vscode.DiagnosticSeverity.Warning))
+						}
+					}
+				}
+			}
+			argumentStartIndex += split[j].length + 1;
+		}
+	}
+	diagnosticCollection.set(document.uri, diagnostics);
+
+}
+
+function argumentsForMacroAtPositionInDocument(text: string, line: number): number {
+	let lines = text.split("\n");
+	for(let i = line - 1; i >= 0; i--) {
+		if(lines[i].startsWith("macroend")) return -1;
+		if(lines[i].startsWith("macro ")) {
+			let split = splitByArguments(lines[i]);
+			if(split.length < 3) return -1;
+			return parseInt(splitByArguments(lines[i])[2]);
+		}
+	}
+	return -1;
 }
 
 // this method is called when your extension is activated
@@ -219,6 +400,38 @@ export function activate(context: vscode.ExtensionContext) {
 	// The commandId parameter must match the command field in package.json
 	let outputChannel = vscode.window.createOutputChannel("brainfuck")
 
+	const diagnosticCollection = vscode.languages.createDiagnosticCollection('cebrainfuck');
+    vscode.workspace.onDidChangeTextDocument(event => {
+        const document = event.document;
+        if (document.languageId === 'cebrainfuck') { // Ensure it's the correct language
+            updateDiagnostics(document, diagnosticCollection);
+        }
+    });
+	let signatureProvider = vscode.languages.registerSignatureHelpProvider(
+        { language: 'cebrainfuck' }, 
+        {
+            provideSignatureHelp(document, position, token, context) {
+                
+				const lineText = document.lineAt(position).text;
+				const lineTillPosition = lineText.substring(0, position.character).trimStart();
+
+				let firstWord = lineText.match(/^[^ ]+/)?.[0]
+				// Get index of current argument by counting whitespaces preceeding position
+				let argumentIndex = splitByArguments(lineTillPosition).length - 2 // remove 1 cause of length to index conversion and 1 for command
+				let keywords = AnalyzeDocument(document);
+				let keyword = keywords.find(x => x.canBeFirstWord && x.label == firstWord);
+				if (!keyword) return null;
+				outputChannelForDebugging.appendLine("Providing signature for " + keyword.label)
+                const signatureHelp = new vscode.SignatureHelp();
+                signatureHelp.signatures = [keyword.toSignature()];
+                signatureHelp.activeSignature = 0;
+                signatureHelp.activeParameter = argumentIndex;
+
+                return signatureHelp;
+            }
+        },
+        ' ' // Triggers for signature help
+    )
 	let completionProvider = vscode.languages.registerCompletionItemProvider('cebrainfuck', {
 		provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
 			const lineText = document.lineAt(position).text;
@@ -227,25 +440,26 @@ export function activate(context: vscode.ExtensionContext) {
 			let completions = []
 			let keywords = AnalyzeDocument(document)
 			if(isFirstWord) {
-				completions.push(...keywords.filter(x => x.kind == vscode.CompletionItemKind.Function))
+				completions.push(...keywords.filter(x => x.canBeFirstWord))
 			}
 			let firstWord = lineText.match(/^[^ ]+/)?.[0]
 			// Get index of current argument by counting whitespaces preceeding position
 			let argumentIndex = splitByArguments(lineTillPosition).length - 2 // remove 1 cause of length to index conversion and 1 for command
-			outputChannelForDebugging.appendLine(firstWord + " at argument index " + argumentIndex)
+			outputChannelForDebugging.appendLine("Providing smart autocomplete for " + firstWord + " at argument index " + argumentIndex)
+			var macroArgumentCount = argumentsForMacroAtPositionInDocument(document.getText(), position.line);
 			if(firstWord != null) {
 				// Checks for command specific completions
 				if(labelCompletions[firstWord] && labelCompletions[firstWord].includes(argumentIndex)) {
-					completions.push(...keywords.filter(x => x.kind == vscode.CompletionItemKind.Module && x.scope == CEBFKeywordScope.InFile || x.canBeLabel))
+					completions.push(...keywords.filter(x => x.canBeLabelInFileHere(macroArgumentCount)))
 				}
 				if(variableCompletions[firstWord] && variableCompletions[firstWord].includes(argumentIndex)) {
-					completions.push(...keywords.filter(x => x.kind == vscode.CompletionItemKind.Variable))
+					completions.push(...keywords.filter(x => x.canBeVariableHere(macroArgumentCount)))
 				}
 			}
 			// Check if label completion is needed
 			return completions;
 		}
-	},     ...[' ', '$', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', ';', ':'] // List all characters you want to trigger completions on
+	},     ...[' ', '#', '$', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', ';', ':'] // List all characters you want to trigger completions on
 )
 	const hoverProvider = vscode.languages.registerHoverProvider('cebrainfuck', {
         provideHover(document, position, token) {
@@ -382,7 +596,7 @@ export function activate(context: vscode.ExtensionContext) {
 		
 	});
 
-	context.subscriptions.push(disposable, completionProvider, hoverProvider, definitionProvider);
+	context.subscriptions.push(disposable, completionProvider, hoverProvider, definitionProvider, diagnosticCollection, signatureProvider);
 }
 
 function sleep(ms: number) {

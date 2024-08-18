@@ -50,12 +50,12 @@
 
 ;; __COMPILER FLAGS__
 ;;   Add comments with ;;
-;;   Add #nocomment to strip the all comments from this file
-;;   Add #minify to strip all line breaks and compiler added comments from the finished code
-;;   Add #commentcode to let the compiler comment the brainfuck code
-;;   Add #noomovement to stop the compiler from optimizing the pointer movement
-;;   Add #seperatestatemachine to put the state machine code into seperate lines
+;; #nocomment               Compiler option: Strip the all comments from the finished file
+;; #minify                  Compiler option: to strip all line breaks and compiler added comments from the finished code
+;; #commentcode             Compiler option: Let the compiler comment the brainfuck code excessively
+;; #noomovement             Compiler option: Stop the compiler from optimizing the pointer movement
+;; #seperatestatemachine    Compiler option: Put the state machine code into seperate lines
 
 
 ;; _______STANDARD LIBRARY________
-;; include the standard library by adding '#include standard.cebf' to the top of your file
+;;   include the standard library by adding '#include standard.cebf' to the top of your file

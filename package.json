@@ -2,7 +2,7 @@
   "name": "brainfuckhelper",
 	"displayName": "brainfuckHelper",
 	"description": "Helps with some brainfuck stuff and CEBF",
-	"version": "0.2.1",
+	"version": "0.2.3",
 	"publisher": "ComputerElite",
 	"engines": {
 		"vscode": "^1.62.0"
