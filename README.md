@@ -30,3 +30,6 @@ Added support for CEBF auto completion and navigation
 ### 0.2.1
 
 Updated Readme
+
+### 0.2.3
+Added errors and warnings

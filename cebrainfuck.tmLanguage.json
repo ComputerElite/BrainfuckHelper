@@ -20,8 +20,8 @@
             "name": "constant.numeric"
         },
         {
-            "match": "\\*",
-            "name": "keyword.operator"
+            "match": "\\*\\$[^ ]+",
+            "name":"keyword.control"
         },
         {
             "match": "^:[a-zA-Z_0-9]+",

@@ -2,38 +2,39 @@
 ;; __INSTRUCTIONS__
 ;; set.c <address> <character>                  sets value into address (character)
 ;; set.n <address> <number>                     sets value into address (number)
-;; set.s <startAddress> <string>                Adds a null terminated string starting at the startAddress
-;; set.a <addressA> <variable>                  Sets the value of addressA to the address of a variable (for pointers)
+;; set.s <start_address> <string>               Adds a null terminated string starting at the startAddress
+;; set.a <address_a> <variable>                 Sets the value of addressA to the address of a variable (for pointers)
 
 ;; out.r <address>                              outputs at address
 ;; out.b <address>                              outputs True or False at address
 ;; wrt.s <string>                               write string
 ;; wrt.n                                        Writes a null character
-;; out.l <startAddress> <n>                     outputs n addresses starting at startAddress
-;; out.n <startAddress>                         outputs all memory addresses incrementally till it hits null
+;; out.l <start_Address> <n>                    outputs n addresses starting at startAddress
+;; out.n <start_Address>                        outputs all memory addresses incrementally till it hits null
 ;; in.c <address>                               Saves a input character to the address
-;; cpy <addressA> <addressB>                    copies addressA to addressB
-;; mpl <addressA> <addressB> <addressC>         multiplies addressA and addressB and stores in addressC
-;; add <addressA> <addressB> <addressC>         adds addressA and addressB and stores in addressC
-;; sub <addressA> <addressB> <addressC>         subtracts addressA from addressB and stores in addressC
+;; cpy <address_a> <address_b>                  copies addressA to addressB
+;; mpl <address_a> <address_b> <address_c>      multiplies addressA and addressB and stores in addressC
+;; add <address_a> <address_b> <address_c>      adds addressA and addressB and stores in addressC
+;; sub <address_a> <address_b> <address_c>      subtracts addressA from addressB and stores in addressC
 ;; jmp <label>                                  jumps to a label
 ;; jmp.nz <address> <label>                     jumps to a label if address is not zero
 ;; jmp.ez <address> <label>                     jumps to a label if address is zero
 ;; inc <address>                                increments value at address
 ;; dec <address>                                decrements value at address
-;; raw <startAddress> <brainfuck code>          Embeds raw brainfuck code into the compiled code (dangerous).
-;;
+;; raw <start_address> <brainfuck_code>         Embeds raw brainfuck code into the compiled code (dangerous).
+;; exit                                         Quits the program
+;;                                          
 ;; __GATES__
-;; and <addressA> <addressB> <addressC>         AND gate    if a and b then c is 1
-;; nand <addressA> <addressB> <addressC>        NAND gate   if a and b then c is 0 else 1
-;; or <addressA> <addressB> <addressC>          OR gate     if a or b then c is 1
-;; xor <addressA> <addressB> <addressC>         XOR gate    if a and b are different then c is 1
-;; not <addressA> <addressB>                    NOT gate    if a is 1 then b is 0 and vice versa
-;;
-;; dbg                                          Shows debug output on brainfuck helper vsc extension
+;; and <address_a> <address_b> <address_c>      AND gate    if a and b then c is 1
+;; nand <address_a> <address_b> <address_c>     NAND gate   if a and b then c is 0 else 1
+;; or <address_a> <address_b> <address_c>       OR gate     if a or b then c is 1
+;; xor <address_a> <address_b> <address_c>      XOR gate    if a and b are different then c is 1
+;; not <address_a> <address_b>                  NOT gate    if a is 1 then b is 0 and vice versa
 
 ;; __DEFINING VARIABLES__
 ;; sad <address> <name>                         gives an address a name you can use and access with '$name' on everything that uses addresses
+;; all <name> <length>                          Allocates addresses to that variable and gives it a name you can access with '$name'
+;; fre <name>                                   Frees the allocated addresses of an variable
 ;; __CONSTANTS
 ;; $cebf_compiler_0; $cebf_compiler_1 $cebf_compiler_2          Internal compiler addresses, use with caution!!! See compiler code for address explenation
 
@@ -41,7 +42,7 @@
 ;; Arguments are split by space. However they're grouped by quotes.
 
 ;; __MACROS__
-;; macro <name> <argumentCount>                                 starts a macro. Use $0 $1 $2 ... to get the arguments of your macro
+;; macro <name> <argument_count>                               starts a macro. Use $0 $1 $2 ... to get the arguments of your macro
 ;; macroend                                                     End of a macro
 ;; calling a macro: <macro name> <arg0> <arg1> <arg2> ...
 
@@ -50,12 +51,16 @@
 
 ;; __COMPILER FLAGS__
 ;;   Add comments with ;;
-;; #nocomment               Compiler option: Strip the all comments from the finished file
-;; #minify                  Compiler option: to strip all line breaks and compiler added comments from the finished code
-;; #commentcode             Compiler option: Let the compiler comment the brainfuck code excessively
-;; #noomovement             Compiler option: Stop the compiler from optimizing the pointer movement
-;; #seperatestatemachine    Compiler option: Put the state machine code into seperate lines
-
+;; #nocomment               (compiler option) strips all comments from the code
+;; #minify                  (compiler option) removes everything that isn't a brainfuck command
+;; #commentcode             (compiler option) Let the compiler excessively comment the produced brainfuck code
+;; #noomovement             (compiler option) Stop the compiler from optimizing pointer movement
+;; #seperatestatemachine    (compiler option) Put the state machine into seperate lines from the command
+;; #produceprecompilecebf   (compiler option) saves a cebf file after including every file and expanding macros. This represents what is actually compiled to brainfuck.
 
 ;; _______STANDARD LIBRARY________
-;;   include the standard library by adding '#include standard.cebf' to the top of your file
+;; include the standard library by adding '#include standard.cebf' to the top of your file
+
+;; __FUNCTIONS__
+;;
+;; jmp.eq <addressA> <addressB> <label>     jumps to a label if addressA is equal to addressB

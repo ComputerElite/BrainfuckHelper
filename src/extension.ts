@@ -33,6 +33,7 @@ class CEBFKeyword {
 	argumentCount: number = 0;
 	checkArgumentCount: boolean = true;
 	checkForUnescapedStrings: boolean = false;
+	freedAt: vscode.Location | undefined;
 
 	arguments: string[] = []
 	private _canBeLabel: boolean = false;
@@ -124,6 +125,13 @@ class CEBFKeyword {
 				this.detail += " <arg" + i.toString() + ">"
 			}
 		}
+
+		if(!this.detail.startsWith(this.label)) {
+			// fix it when idiots forget to rename the function in their usage comment
+			let partialDetails = this.detail.split(" ")
+			partialDetails.splice(0, 1)
+			this.detail = this.label + " " + partialDetails.join(" ")
+		}
 	}
 
 	analyzeCompletion() {
@@ -144,7 +152,32 @@ class CEBFKeyword {
 }
 
 function splitByArguments(text: string): string[] {
-	return text.split(" ")
+	let inQuotationMark = false;
+    const newCmds: string[] = [];
+	let cmds = text.split(" ");
+
+    for (let s of cmds) {
+        const wasInQuotationMark = inQuotationMark;
+        let nS = s.replace(/\\"/g, "\"");
+
+        if (s.startsWith("\"")) {
+            inQuotationMark = true;
+            nS = s.substring(1);
+        }
+
+        if (s.endsWith("\"") && !s.endsWith("\\\"")) {
+            inQuotationMark = false;
+            nS = s.substring(0, s.length - 1);
+        }
+
+        if (wasInQuotationMark) {
+            newCmds[newCmds.length - 1] += " " + nS;
+        } else {
+            newCmds.push(nS);
+        }
+    }
+
+    return newCmds;
 }
 
 var compilerKeywords: CEBFKeyword[] = []
@@ -218,8 +251,8 @@ function processDocs(context: vscode.ExtensionContext) {
 			if(keyword.label.startsWith("#")) {
 				keyword.kind = vscode.CompletionItemKind.Keyword;
 				keyword.canBeFirstWord = true;
-				keyword.filterText = keyword.label.substring(1);
-				keyword.insertText = new vscode.SnippetString(keyword.label.substring(1));
+				//keyword.filterText = keyword.label.substring(1);
+				//keyword.insertText = new vscode.SnippetString(keyword.label.substring(1));
 			}
 			keyword.analyzeCompletion();
 			compilerKeywords.push(keyword);
@@ -249,6 +282,17 @@ function GetCompletionOfFile(text: string, file: string, isIncludedFile: boolean
 			let keyword = new CEBFKeyword("$" + split[2], vscode.CompletionItemKind.Variable);
 			keyword.autoPopulate(i, lines, split, keywordScope, file);
 			completions.push(keyword);
+		} else if(line.startsWith("all ")) {
+			// Variable allocation found
+			let keyword = new CEBFKeyword("$" + split[1], vscode.CompletionItemKind.Variable);
+			keyword.autoPopulate(i, lines, split, keywordScope, file);
+			completions.push(keyword);
+		} else if(line.startsWith("fre ")) {
+			// Variable free found
+			var freedVar = completions.find(x => x.label == "$" + split[1]);
+			if(freedVar) {
+				freedVar.freedAt = new vscode.Location(vscode.Uri.file(file), new vscode.Position(i, 0));
+			}
 		} else if(line.startsWith("#include ")) {
 			line = line.substring(9);
 			let includeFile = line.replace(/"/g, "");
@@ -284,10 +328,16 @@ function loadCompilerKeywords(context: vscode.ExtensionContext) {
 		keyword.documentation = "Argument " + i.toString() + " passed to the macro you're currently in. Aka this variable will get replaced with whatever the user passes in.";
 		compilerKeywords.push(keyword);
 	}
-	for(let i = 0; i < 1; i++) {
+	for(let i = 0; i < 2; i++) {
 		let keyword = new CEBFKeyword("$cebf_interpreter_" + i.toString(), vscode.CompletionItemKind.Variable);
 		keyword.scope = CEBFKeywordScope.Compiler;
 		keyword.documentation = "Internal variable for communication with the CEBF interpreter. " +(i == 0 ? "For telling it what to do" : "For feedback from the interpreter") + "\n\nBehavior can be looked up at https://github.com/ComputerElite/BrainfuckInterpreter/blob/main/CEBrainfuckInterpreter/CEBrainfuckInterpreter/README.md";
+		compilerKeywords.push(keyword);
+	}
+	for(let i = 0; i < 14; i++) {
+		let keyword = new CEBFKeyword("$cebf_stdlib_" + i.toString(), vscode.CompletionItemKind.Variable);
+		keyword.scope = CEBFKeywordScope.Compiler;
+		keyword.documentation = "Do not use! Variable where the standard library saves stuff";
 		compilerKeywords.push(keyword);
 	}
 }
@@ -340,33 +390,58 @@ function updateDiagnostics(document: vscode.TextDocument, diagnosticCollection: 
 							diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, 0, i, split[0].length), "Macroend without macro", vscode.DiagnosticSeverity.Error))
 						}
 						break;
-					}
-			}
-
-		}
-		let macroArgumentCount = argumentsForMacroAtPositionInDocument(document.getText(), i);
-		let argumentStartIndex = 0;
-		let firstWord = split[0];
-		for(let j= 0; j < split.length; j++) {
-			if(split[j].startsWith("$")) {
-				// check if variable exists
-				
-				let f = keywords.find(x => x.canBeVariableHere(macroArgumentCount) && split[j] == x.label);
-				if(!f) {
-					diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, argumentStartIndex, i, argumentStartIndex + split[j].length), "Variable " + split[j] + " does not exist in this context", vscode.DiagnosticSeverity.Error))
+					case "sad":
+						// deprecated
+						diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, 0, i, lineTxt.length), "Warning: Address naming via sad is deprecated. Use all instead to let the compiler decide where to place the variable.", vscode.DiagnosticSeverity.Warning))
 				}
 			}
-			if(foundKeyword && foundKeyword.checkForUnescapedStrings) {
-				// On wrt.s show warnings for unescaped strings
-				for(let k = 0; k < split[j].length; k++) {
-					if(split[j][k] == '"') {
-						if(k == 0 || split[j][k-1] != "\\" && (k == split[j].length - 1 || split[j][k+1] != "\\")) {
-							diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, argumentStartIndex + k, i, argumentStartIndex + k + 1), "Unescaped double quotation may be grouped as one argument and thus be removed.\n\ne. g. 'wrt.s They said \"I use arch btw\"'\nwill be output as\n'They said I use arch btw'\ninstead of\n'They said \"I use arch btw\"'", vscode.DiagnosticSeverity.Warning))
+			let macroArgumentCount = argumentsForMacroAtPositionInDocument(document.getText(), i);
+			let argumentStartIndex = 0;
+			let firstWord = split[0];
+			for(let j= 0; j < split.length; j++) {
+				if(split[j].startsWith("$")) {
+					// check if variable exists
+					let f = keywords.find(x => x.canBeVariableHere(macroArgumentCount) && split[j] == x.label);
+					if(!f) {
+						diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, argumentStartIndex, i, argumentStartIndex + split[j].length), "Variable " + split[j] + " does not exist in this context", vscode.DiagnosticSeverity.Error))
+					} else {
+						// check if variable has been freed
+						if(f.freedAt) {
+							if(f.freedAt.uri == document.uri) {
+								if(f.freedAt.range.start.line < i) {
+									diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, argumentStartIndex, i, argumentStartIndex + split[j].length), "Variable " + split[j] + " has already been freed", vscode.DiagnosticSeverity.Warning))
+								}
+	
+							}
 						}
 					}
 				}
+				if(foundKeyword) {
+					// Check for labels
+					let argumentIndex = j - 1;
+					if(labelCompletions[firstWord].includes(argumentIndex)) {
+						// check if label exists
+	
+						let f = keywords.find(x => x.canBeLabelInFileHere(macroArgumentCount) && split[j] == x.label);
+						if(!f) {
+							diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, argumentStartIndex, i, argumentStartIndex + split[j].length), "Label " + split[j] + " does not exist in this context", vscode.DiagnosticSeverity.Error))
+						}
+					}
+				}
+				argumentStartIndex += split[j].length + 1;
 			}
-			argumentStartIndex += split[j].length + 1;
+		
+		}
+
+		if(foundKeyword && foundKeyword.checkForUnescapedStrings) {
+			// On wrt.s show warnings for unescaped strings
+			for(let k = 0; k < lineTxt.length; k++) {
+				if(lineTxt[k] == '"') {
+					if(k == 0 || lineTxt[k-1] != "\\" && (k == lineTxt.length - 1 || lineTxt[k+1] != "\\")) {
+						diagnostics.push(new vscode.Diagnostic(new vscode.Range(i, k, i, k + 1), "Unescaped double quotation may be grouped as one argument and thus be removed.\n\ne. g. 'wrt.s They said \"I use arch btw\"'\nwill be output as\n'They said I use arch btw'\ninstead of\n'They said \"I use arch btw\"'", vscode.DiagnosticSeverity.Warning))
+					}
+				}
+			}
 		}
 	}
 	diagnosticCollection.set(document.uri, diagnostics);
@@ -456,8 +531,11 @@ export function activate(context: vscode.ExtensionContext) {
 					completions.push(...keywords.filter(x => x.canBeVariableHere(macroArgumentCount)))
 				}
 			}
+			let range = document.getWordRangeAtPosition(position, /[^ ]+/);
+			let completionItems = completions.map(x => x.toCompletionItem());
+			completionItems.forEach(x => x.range = range);
 			// Check if label completion is needed
-			return completions;
+			return completionItems;
 		}
 	},     ...[' ', '#', '$', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', ';', ':'] // List all characters you want to trigger completions on
 )
