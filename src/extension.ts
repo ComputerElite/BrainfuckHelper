@@ -340,6 +340,12 @@ function loadCompilerKeywords(context: vscode.ExtensionContext) {
 		keyword.documentation = "Do not use! Variable where the standard library saves stuff";
 		compilerKeywords.push(keyword);
 	}
+	for(let i = 0; i < 34; i++) {
+		let keyword = new CEBFKeyword("$cebf_compiler_" + i.toString(), vscode.CompletionItemKind.Variable);
+		keyword.scope = CEBFKeywordScope.Compiler;
+		keyword.documentation = "Do not use! Variable where the compiler does stuff";
+		compilerKeywords.push(keyword);
+	}
 }
 
 function updateDiagnostics(document: vscode.TextDocument, diagnosticCollection: vscode.DiagnosticCollection) {
