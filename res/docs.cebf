@@ -57,10 +57,7 @@
 ;; #noomovement             (compiler option) Stop the compiler from optimizing pointer movement
 ;; #seperatestatemachine    (compiler option) Put the state machine into seperate lines from the command
 ;; #produceprecompilecebf   (compiler option) saves a cebf file after including every file and expanding macros. This represents what is actually compiled to brainfuck.
+;; #cellsize <max_value>    (compiler option) Tells the interpreter the maximum value a cell can store (default: 255)
 
 ;; _______STANDARD LIBRARY________
-;; include the standard library by adding '#include standard.cebf' to the top of your file
-
-;; __FUNCTIONS__
-;;
-;; jmp.eq <addressA> <addressB> <label>     jumps to a label if addressA is equal to addressB
+;; include the standard library by adding '#include standard.cebf' to the top of your file.
