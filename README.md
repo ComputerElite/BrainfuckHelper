@@ -1,4 +1,5 @@
-# Brainfuck Helper
+> [!WARNING]
+> This repository has moved to Codeberg: https://codeberg.org/kaiya/BrainfuckHelper # Brainfuck Helper
 Helps you with Brainfuck. Mainly execution of brainfuck programs.s
 
 ## Features
